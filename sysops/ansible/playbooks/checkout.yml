@@ -1,0 +1,17 @@
+---
+- name: Checkout Git Repository
+  hosts: all
+  become: true
+  remote_user: root
+
+  tasks:
+    - name: Ensure Git is installed
+      apt:
+        name: git
+        state: present
+
+    - name: Clone repository
+      git:
+        repo: 'https://github.com/OumaDennisOmondi/api-rate-limiter.git'
+        dest: /opt/api-rate-limiter
+        version: main

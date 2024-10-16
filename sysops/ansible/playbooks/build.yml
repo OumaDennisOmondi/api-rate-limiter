@@ -1,0 +1,12 @@
+---
+- name: Build Image
+  hosts: all
+  become: true
+  remote_user: root
+
+  tasks:
+    - name: Build Docker Image
+      shell: |
+        cd /opt/api-rate-limiter
+        chmod +x gradlew
+        ./gradlew jibDockerBuild

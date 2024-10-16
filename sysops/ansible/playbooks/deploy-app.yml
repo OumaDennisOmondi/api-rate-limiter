@@ -1,0 +1,11 @@
+---
+- name: Deploy Application
+  hosts: all
+  become: true
+  remote_user: root
+
+  tasks:
+    - name: Deploy
+      shell: |
+        cd /opt/api-rate-limiter
+        docker-compose up -d

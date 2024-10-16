@@ -10,7 +10,7 @@ pipeline {
         }
  
  
-        stage('Init') {
+        stage('Infa Init') {
             steps {
                 script {
                     //Initialize terraform
@@ -21,7 +21,7 @@ pipeline {
             }
         }
 
-        stage('Plan') {
+        stage('Infra Plan') {
             steps {
                 script {
                     // Terraform plan
@@ -35,7 +35,7 @@ pipeline {
             }
         }
 
-        stage('Apply') {
+        stage('Infra Apply') {
             steps {
                 script {
                     // Apply Terraform plan
@@ -48,8 +48,48 @@ pipeline {
                 }
             }
         }
+        stage('Ansible Deploy Docker') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/docker.yml
+                '''
+            }
 
-          stage('Destroy') {
+        }
+          stage('Ansible Install Java') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/java.yml
+                '''
+            }
+
+        }
+          stage('Ansible Checkout Repo') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/checkout.yml
+                '''
+            }
+
+        }
+          stage('Ansible Build Image') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/build.yml
+                '''
+            }
+
+        }
+          stage('Ansible Deploy App') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/deploy-app.yml
+                '''
+            }
+
+        }
+
+          stage('Infra Destroy') {
             steps {
                 script {
                     // Apply Terraform plan
