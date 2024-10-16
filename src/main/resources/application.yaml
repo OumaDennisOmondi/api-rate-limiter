@@ -1,0 +1,13 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: ratelimited_route
+          uri: ${RATE_LIMITED_URI}
+          predicates:
+          - Path=${RATE_LIMITED_PATH}
+          filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@apiRateLimiter}"
+                key-resolver: "#{@apiKeyResolver}"

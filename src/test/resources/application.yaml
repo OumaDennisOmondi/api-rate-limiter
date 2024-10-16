@@ -1,0 +1,17 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: ratelimited_route
+          uri: ${target.url}
+          predicates:
+          - Path=/limited
+          filters:
+            - name: RequestRateLimiter
+              args:
+                rate-limiter: "#{@apiRateLimiter}"
+                key-resolver: "#{@apiKeyResolver}"
+  redis:
+    host: ${embedded.redis.host}
+    port: ${embedded.redis.port}
+    password: ${embedded.redis.password}
