@@ -24,3 +24,13 @@ resource "digitalocean_droplet" "irembo-dp" {
   }
 
 }
+
+output "ip_address" {
+  value = digitalocean_droplet.irembo-dp.ipv4_address
+  description = "The public IP address of our Droplet application."
+}
+
+resource "local_file" "ipv4_address" {
+  filename = "ipv4_address"
+  content = digitalocean_droplet.irembo-dp.ipv4_address
+}

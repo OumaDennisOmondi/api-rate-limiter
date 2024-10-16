@@ -1,0 +1,73 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Checkout code from your repository
+                git url: 'https://github.com/OumaDennisOmondi/api-rate-limiter.git', branch: 'main'
+            }
+        }
+ 
+ 
+        stage('Init') {
+            steps {
+                script {
+                    //Initialize terraform
+                    sh ''' 
+                    cd sysops/terraform
+                    terraform init '''
+                }
+            }
+        }
+
+        stage('Plan') {
+            steps {
+                script {
+                    // Terraform plan
+                    sh '''
+                    cd sysops/terraform
+                    terraform plan            \
+                      -var "do_token=${DO_PAT}" \
+                      -var "pvt_key=$PUB_KEY"
+                    '''
+                }
+            }
+        }
+
+        stage('Apply') {
+            steps {
+                script {
+                    // Apply Terraform plan
+                    sh '''
+                    cd sysops/terraform
+                    terraform apply -auto-approve  \
+                      -var "do_token=${DO_PAT}" \
+                      -var "pvt_key=$PUB_KEY"
+                    '''
+                }
+            }
+        }
+
+          stage('Destroy') {
+            steps {
+                script {
+                    // Apply Terraform plan
+                    sh '''
+                    cd sysops/terraform
+                    terraform destroy  -auto-approve \
+                      -var "do_token=${DO_PAT}" \
+                      -var "pvt_key=$PUB_KEY"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            // Clean up any state files, logs, etc.
+            cleanWs()
+        }
+    }
+}
