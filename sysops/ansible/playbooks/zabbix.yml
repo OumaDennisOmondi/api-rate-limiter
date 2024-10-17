@@ -1,0 +1,167 @@
+---
+- name: Install Zabbix on Ubuntu
+  hosts: all
+  become: true
+  remote_user: root
+  vars:
+    zabbix_repo_url: "https://repo.zabbix.com/zabbix/6.4/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.4-1%2Bubuntu20.04_all.deb"
+    zabbix_version: "6.4"
+    db_name: "zabbix"
+    db_user: "root"
+    db_password: "StrongPasswordHere"
+
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - software-properties-common
+          - wget
+        state: present   
+
+    - name: Download Zabbix repository package
+      get_url:
+        url: "{{ zabbix_repo_url }}"
+        dest: /tmp/zabbix-release.deb
+
+    - name: Install Zabbix repository
+      apt:
+        deb: /tmp/zabbix-release.deb
+
+    - name: Add Zabbix GPG key
+      apt_key:
+        url: https://repo.zabbix.com/zabbix-official-repo.key
+        state: present    
+
+    - name: Update apt cache after adding Zabbix repo
+      apt:
+        update_cache: yes
+
+    - name: Install required dependencies
+      apt:
+        name:
+          - libc6
+          - libcurl4
+          - libldap-2.4-2
+          - libssl1.1
+          - snmpd
+        state: present
+
+    - name: Install required Python packages
+      apt:
+        name:
+          - python3-pip
+        state: present
+
+    - name: Install MySQL modules for Python 3
+      pip:
+        name:
+          - PyMySQL
+
+    - name: Install Zabbix server, frontend, and agent
+      apt:
+        name:
+          - zabbix-server-mysql
+          - zabbix-frontend-php
+          - zabbix-sql-scripts
+          - zabbix-agent
+        state: present
+
+    - name: Install MySQL server
+      apt:
+        name: mysql-server
+        state: present
+
+    - name: Start MySQL service
+      service:
+        name: mysql
+        state: started
+        enabled: yes
+
+
+    - name: Set MySQL root password
+      mysql_user:
+        name: root
+        host: localhost
+        password: "{{ db_password }}"
+        priv: '*.*:ALL,GRANT'
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock      
+
+    - name: Create Zabbix database
+      mysql_db:
+        name: zabbix
+        state: present
+        login_user: root
+        login_password: "{{ db_password }}"
+
+    - name: Create Zabbix database user
+      mysql_user:
+        name: zabbix
+        password: "{{ db_password }}"
+        priv: 'zabbix.*:ALL'
+        state: present
+        login_user: "{{ db_user}}"
+        login_password: "{{ db_password }}"    
+
+    
+
+    - name: Import initial Zabbix schema
+      shell: |
+        zcat /usr/share/zabbix-sql-scripts/mysql/server.sql.gz | mysql -u root -p{{ db_password }} zabbix
+
+      #command: >
+      #  mysql -u{{ db_user }} -p{{ db_password }} {{ db_name }} < /usr/share/zabbix-server-mysql/schema.sql.gz
+      #args:
+      #  creates: /usr/share/zabbix-server-mysql/schema.sql.gz
+
+    - name: Configure Zabbix server to use the database
+      lineinfile:
+        path: /etc/zabbix/zabbix_server.conf
+        regexp: '^# DBPassword='
+        line: "DBPassword={{ db_password }}"
+
+    - name: Restart Zabbix server and agent services
+      service:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - zabbix-server
+        - zabbix-agent
+
+    - name: Ensure Zabbix server and agent are enabled
+      service:
+        name: "{{ item }}"
+        enabled: yes
+      loop:
+        - zabbix-server
+        - zabbix-agent
+
+    - name: Update DocumentRoot in default site configuration
+      lineinfile:
+        path: /etc/apache2/sites-available/000-default.conf
+        regexp: '^(\s*DocumentRoot\s+)(\S+)'
+        line: 'DocumentRoot /usr/share/zabbix'    
+
+    - name: Set PHP configuration values
+      lineinfile:
+        path: /etc/php/7.4/apache2/php.ini
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+      with_items:
+        - { regexp: '^max_execution_time =', line: 'max_execution_time = 300' }
+        - { regexp: '^memory_limit =', line: 'memory_limit = 256M' }
+        - { regexp: '^post_max_size =', line: 'post_max_size = 16M' }
+        - { regexp: '^upload_max_filesize =', line: 'upload_max_filesize = 2M' }
+        - { regexp: '^max_input_time =', line: 'max_input_time = 300' }
+        - { regexp: '^;date.timezone =', line: 'date.timezone = Africa/Nairobi' }
+
+    - name: Restart Apache to apply changes
+      service:
+        name: apache2
+        state: restarted
+        enabled: yes

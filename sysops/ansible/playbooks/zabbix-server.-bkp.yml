@@ -1,0 +1,142 @@
+---
+- name: Install Zabbix Server
+  hosts: all
+  become: true
+  remote_user: root
+
+  vars:
+    mysql_root_password: password
+    zabbix_db_password: zabbix
+
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Add Zabbix repository
+      apt_repository:
+        repo: 'deb http://repo.zabbix.com/zabbix/5.0/ubuntu focal main'
+        state: present
+        filename: zabbix
+
+    - name: Add Zabbix GPG key
+      apt_key:
+        url: https://repo.zabbix.com/zabbix-official-repo.key
+        state: present
+
+    - name: Update apt package index again
+      apt:
+        update_cache: yes
+
+    - name: Install required Python packages
+      apt:
+        name:
+          - python3-pip
+        state: present
+
+    - name: Install MySQL modules for Python 3
+      pip:
+        name:
+          - PyMySQL
+    - name: Install Zabbix Server and required PHP packages
+      apt:
+        name:
+          - zabbix-server-mysql
+          - zabbix-frontend-php
+          - zabbix-nginx-conf
+          - php7.4
+          - php7.4-fpm
+          - php7.4-mysql
+        state: present
+
+    - name: Install MariaDB for Zabbix
+      apt:
+        name:
+          - mariadb-client-10.3
+          - mariadb-server-10.3
+          
+        state: present
+
+
+    - name: Start and enable MariaDB
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+
+    - name: Set MySQL root password
+      mysql_user:
+        name: root
+        host: localhost
+        password: "{{ mysql_root_password }}"
+        priv: '*.*:ALL,GRANT'
+        state: present
+        login_unix_socket: /var/run/mysqld/mysqld.sock    
+
+
+    - name: Create Zabbix database
+      mysql_db:
+        name: zabbix
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Create Zabbix database user
+      mysql_user:
+        name: zabbix
+        password: "{{ zabbix_db_password }}"
+        priv: 'zabbix.*:ALL'
+        state: present
+        login_user: root
+        login_password: "{{ mysql_root_password }}"
+
+    - name: Start and enable Zabbix Server
+      systemd:
+        name: zabbix-server
+        state: started
+        enabled: yes
+
+    - name: Configure Nginx for Zabbix
+      copy:
+        dest: /etc/nginx/sites-available/zabbix
+        content: |
+          server {
+              listen 80;
+
+                server_name 157.245.112.40;
+
+                root /usr/share/zabbix;
+
+                location / {
+                        if ( $scheme ~ ^http: ) {
+                                rewrite ^(.*)$ https://$host$1 permanent;
+                        }
+                        index   index.php;
+                        error_page      403     404     502     503     504     /zabbix/index.php;
+
+                        location ~\.php$ {
+                                if ( !-f $request_filename ) { return 404; }
+                                expires epoch;
+                                include /etc/nginx/fastcgi_params;
+                                fastcgi_index index.php;
+                                fastcgi_pass unix:/var/run/zabbix.socket;
+                                fastcgi_param SCRIPT_FILENAME   /usr/share/zabbix/$fastcgi_script_name;
+                        }
+
+                        location ~ \.(jpg|jpeg|gif|png|ico)$ {
+                                access_log off;
+                                expires 33d;
+                        }
+                }
+          }
+
+    - name: Enable Zabbix site
+      file:
+        src: /etc/nginx/sites-available/zabbix
+        dest: /etc/nginx/sites-enabled/zabbix
+        state: link
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted

@@ -2,7 +2,7 @@ resource "digitalocean_droplet" "irembo-dp" {
     image = "ubuntu-20-04-x64"
     name = "irembo-dp"
     region = "nyc3"
-    size = "s-1vcpu-1gb"
+    size = "s-2vcpu-2gb"
     ssh_keys = [
       data.digitalocean_ssh_key.digitalocean.id
     ]

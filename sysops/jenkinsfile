@@ -89,6 +89,15 @@ pipeline {
 
         }
 
+        stage('Ansible Deploy Zabbix') {
+            steps {
+                sh '''
+                ansible-playbook -i ${ANS_PLY_DIR}/zabbix.yml
+                '''
+            }
+
+        }
+
           stage('Infra Destroy') {
             steps {
                 script {
