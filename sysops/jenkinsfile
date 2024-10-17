@@ -48,52 +48,44 @@ pipeline {
                 }
             }
         }
+        
+
         stage('Ansible Deploy Docker') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/docker.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/java.yml', vaultTmpPath: ''
+
             }
 
         }
-          stage('Ansible Install Java') {
+        stage('Ansible Install Java') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/java.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/java.yml', vaultTmpPath: ''
             }
 
         }
+          
           stage('Ansible Checkout Repo') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/checkout.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/docker.yml', vaultTmpPath: ''
             }
 
         }
           stage('Ansible Build Image') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/build.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/build.yml', vaultTmpPath: ''
             }
 
         }
           stage('Ansible Deploy App') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/deploy-app.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/deploy-app.yml', vaultTmpPath: ''
             }
 
         }
 
         stage('Ansible Deploy Zabbix') {
             steps {
-                sh '''
-                ansible-playbook -i ${ANS_PLY_DIR}/zabbix.yml
-                '''
+                ansiblePlaybook credentialsId: 'do-ssh', disableHostKeyChecking: true, installation: 'ansible', inventory: 'sysops/terraform/inventory', playbook: 'sysops/ansible/playbooks/zabbix.yml', vaultTmpPath: ''
             }
 
         }

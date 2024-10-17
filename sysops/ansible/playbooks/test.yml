@@ -1,0 +1,16 @@
+---
+- name: Install OpenJDK 8 and Gradle 6
+  hosts: all
+  become: true
+  remote_user: root
+  gather_facts: false
+
+  tasks:
+    - name: Update apt package index
+      apt:
+        update_cache: yes
+
+    - name: Install OpenJDK 8
+      apt:
+        name: openjdk-8-jdk
+        state: present
